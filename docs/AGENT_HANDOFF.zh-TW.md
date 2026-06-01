@@ -8,11 +8,11 @@
 
 ## 2026-06-01 20:30 RendererSkinAsset Stage 2 Cross-Agent Review Initiated
 * **本輪工作**：
-  - **完成跨 Agent 評審發信**：在 `AGENT_EXCHANGE/inbox/` 中分別向壓縮主寫 `c_2` (`rrkal-visual-compressor`) 與渲染主寫 `c_3` (`RRKAL_displaytools`) 提交了最新 v0.2.2 安全硬化成果與技術合約 `rfc_v0.2.1.md` 的文字審查提請信。
+  - **完成跨 Agent 評審發信**：在 `AGENT_EXCHANGE/inbox/` 中分別向壓縮主寫 `c_2` (`rrkal-visual-compressor`) 與渲染主寫 `c_3` (`RRKAL_displaytools`) 提交了最新 v0.2.2 安全硬化成果與技術合約 `v0.2.2` 的文字審查提請信。
   - **規格合約部署**：本次發信重點報告了 v0.2.2 中 Ingestion 的安全防禦能力（expected_file_size_bytes、strictly expected_keys 鍵集合比對以及 valid_mask 記憶體 sizes 校驗防護），並提請雙端主寫在此文字與設計層面上進行跨專案評審。
   - **進度與日誌同步**：同步更新了專案 GTD（將 Stage 2 標記為完成）與開發日誌。
 * **保持邊界 (Boundaries)**：
-  - 三大產品專案（`APIkeys_collection`、`rrkal-visual-compressor`、`RRKAL_displaytools`）保持 100% 唯讀安全紅線。
+  - 產品 repo 維持唯讀邊界，未偵測到本輪產品 repo 修改。
   - 繼續保持二進位防漏，測試大數據無任何洩漏。
 * **已驗證 (Verification)**：
   - 執行專案煙霧測試與 Docs Drift 自檢無誤。

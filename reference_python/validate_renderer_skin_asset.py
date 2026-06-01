@@ -271,7 +271,8 @@ def validate_renderer_skin_asset(asset_dir):
         if minmax_scope != "global_lod_summary":
             raise ValueError(f"[ERROR] LOD {lvl} 的 minmax 範圍元數據宣告非法: {minmax_scope}")
         
-    print("[+] 恭喜！該皮層資產順利通過 100% 安全 Ingestion 校驗，防禦指標全部綠燈！")
+    print("[+] 該皮層資產通過 v0.2.2 reference ingestion checks.")
+    print("    Status: external reference prototype pass with notes.")
 
 if __name__ == "__main__":
     current_dir = os.path.dirname(os.path.abspath(__file__))
