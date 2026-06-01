@@ -1,7 +1,7 @@
 {
-  "schema": "rrkal.renderer_skin_asset.v0.2.1",
+  "schema": "rrkal.renderer_skin_asset.v0.2.2",
   "kind": "terrain",
-  "asset_id": "terrain_synthetic_v0.2.1",
+  "asset_id": "terrain_synthetic_v0.2.2",
   "source_dataset": "SYNTHETIC_GENERATOR_V2",
   "source_fingerprint": "sha256:c6d87478e2aee3b81c65387aac4d42ca61ab3adb62e329778cb1270fb25705f3",
   "encoding": {
@@ -48,8 +48,14 @@
       "file_size_bytes": 81095,
       "compression": "npz_deflate",
       "valid_mask": "payloads/coverage/valid_elevation_mask_l0_u8.npz",
+      "valid_mask_file_size_bytes": 353,
       "land_fraction": "payloads/coverage/land_fraction_l0_u8.npz",
-      "water_fraction": "payloads/coverage/water_fraction_l0_u8.npz"
+      "land_fraction_file_size_bytes": 14528,
+      "water_fraction": "payloads/coverage/water_fraction_l0_u8.npz",
+      "water_fraction_file_size_bytes": 14528,
+      "minmax_path": "payloads/minmax_l0_i16.npz",
+      "minmax_file_size_bytes": 382,
+      "minmax_scope": "global_lod_summary"
     },
     {
       "level": 1,
@@ -63,8 +69,14 @@
       "file_size_bytes": 13369,
       "compression": "npz_deflate",
       "valid_mask": "payloads/coverage/valid_elevation_mask_l1_u8.npz",
+      "valid_mask_file_size_bytes": 269,
       "land_fraction": "payloads/coverage/land_fraction_l1_u8.npz",
-      "water_fraction": "payloads/coverage/water_fraction_l1_u8.npz"
+      "land_fraction_file_size_bytes": 4561,
+      "water_fraction": "payloads/coverage/water_fraction_l1_u8.npz",
+      "water_fraction_file_size_bytes": 4563,
+      "minmax_path": "payloads/minmax_l1_i16.npz",
+      "minmax_file_size_bytes": 382,
+      "minmax_scope": "global_lod_summary"
     },
     {
       "level": 2,
@@ -78,8 +90,14 @@
       "file_size_bytes": 3812,
       "compression": "npz_deflate",
       "valid_mask": "payloads/coverage/valid_elevation_mask_l2_u8.npz",
+      "valid_mask_file_size_bytes": 239,
       "land_fraction": "payloads/coverage/land_fraction_l2_u8.npz",
-      "water_fraction": "payloads/coverage/water_fraction_l2_u8.npz"
+      "land_fraction_file_size_bytes": 1692,
+      "water_fraction": "payloads/coverage/water_fraction_l2_u8.npz",
+      "water_fraction_file_size_bytes": 1642,
+      "minmax_path": "payloads/minmax_l2_i16.npz",
+      "minmax_file_size_bytes": 382,
+      "minmax_scope": "global_lod_summary"
     }
   ],
   "checksums": {

@@ -2,12 +2,15 @@
 # -*- coding: utf-8 -*-
 """
 validate_renderer_skin_asset.py
-功能：實現 RFC v0.2.1 約定的防禦型安全 Ingestion 驗證器。
+功能：實現 RFC v0.2.2 約定的防禦型安全 Ingestion 驗證器。
 說明：
-1. 實體大小比對，防範文件截斷。
+1. 實體大小精確比對，防範文件截斷與多餘數據。
 2. 嚴密防禦 Path Traversal（路徑跨越攻擊），先安全判斷後再 open。
 3. 強制 `allow_pickle=False`，消滅任意代碼注入漏洞。
 4. 提供 validate_npz_payload() 共用校驗器，全方位檢測 elevation, valid_mask, land_fraction, water_fraction 及 minmax。
+   - 支援嚴格 Keys 集合匹配：set(keys) == set(expected_keys)
+   - 支援預期檔案大小 expected_file_size_bytes 的精確比對。
+   - 支援對 valid_mask / land_fraction / water_fraction 進行 expected_raw_nbytes = height * width 檢查。
 5. 檢查真實 source_fingerprint 是否為合法 sha256 格式。
 6. 驗證 schema, kind, status, grid.row_order, bounds 等基本元數據欄位。
 """
@@ -40,10 +43,11 @@ def validate_npz_payload(
     expected_ndim,
     expected_shape,
     expected_raw_nbytes,
+    expected_file_size_bytes, # 新增此參數，用於精確檔案大小校驗
     declared_checksum,
     max_payload_bytes=1073741824
 ):
-    """防禦型 NumPy Payload 共用安全校驗器"""
+    """防禦型 NumPy Payload 共用安全校驗器 (v0.2.2 Hardened)"""
     payload_abs_path = os.path.join(skin_root, rel_path)
     
     # 1. Path Traversal 與路徑安全校驗 (先安全校驗，再 exists)
@@ -53,10 +57,14 @@ def validate_npz_payload(
     if not os.path.exists(payload_abs_path):
         raise FileNotFoundError(f"[ERROR] 找不到實體二進位 Payload: {payload_abs_path}")
         
-    # 2. 實體檔案大小上限防禦 (防範 Disk Bomb)
+    # 2. 實體檔案大小精確校驗與上限防禦 (防範截斷或 Disk Bomb)
     actual_file_size = os.path.getsize(payload_abs_path)
     if actual_file_size > max_payload_bytes:
         raise ValueError(f"[SECURITY ERROR] 檔案 [{rel_path}] 實體大小超出安全上限！")
+        
+    if expected_file_size_bytes is not None:
+        if actual_file_size != expected_file_size_bytes:
+            raise ValueError(f"[SECURITY ERROR] 檔案 [{rel_path}] 實體大小 ({actual_file_size}) 與預期值 ({expected_file_size_bytes}) 不符！")
         
     # 3. SHA-256 哈希值匹配校驗
     actual_hash = calculate_sha256(payload_abs_path)
@@ -69,14 +77,10 @@ def validate_npz_payload(
     except Exception as e:
         raise ValueError(f"[SECURITY ERROR] 檔案 [{rel_path}] 加載失敗或格式不合規: {e}")
         
-    # 5. Keys 數量與鍵名檢查
+    # 5. 嚴格 Keys 集合匹配校驗
     keys = list(npz_data.keys())
-    if len(keys) > len(expected_keys) + 2:
-        raise ValueError(f"[SECURITY ERROR] 檔案 [{rel_path}] 中的鍵數量 ({len(keys)}) 超出安全限制，疑似惡意包")
-        
-    for k in expected_keys:
-        if k not in keys:
-            raise ValueError(f"[ERROR] 檔案 [{rel_path}] 中找不到必需的 [{k}] 陣列")
+    if set(keys) != set(expected_keys):
+        raise ValueError(f"[SECURITY ERROR] 檔案 [{rel_path}] 的鍵集合 {set(keys)} 與預期 {set(expected_keys)} 不一致！")
             
     # 6. Dtype, Ndim, Shape 與內存 Nbytes 安全檢查 (防範 Memory Bomb)
     for k in expected_keys:
@@ -93,7 +97,7 @@ def validate_npz_payload(
             if actual_dtype_str != expected_dtype:
                 raise ValueError(f"[SECURITY ERROR] 陣列 [{rel_path}][{k}] 數據型態 ({actual_dtype_str}) 與預期 ({expected_dtype}) 不符")
                 
-        if expected_raw_nbytes is not None and k == "data":
+        if expected_raw_nbytes is not None:
             actual_nbytes = int(arr.nbytes)
             if actual_nbytes != expected_raw_nbytes:
                 raise ValueError(f"[SECURITY ERROR] 陣列 [{rel_path}][{k}] 內存 nbytes ({actual_nbytes}) 與預期 ({expected_raw_nbytes}) 不符！")
@@ -137,7 +141,7 @@ def validate_renderer_skin_asset(asset_dir):
         
     # 3. 驗證基本元數據欄位與格式限制
     schema = manifest.get("schema")
-    if schema != "rrkal.renderer_skin_asset.v0.2.1":
+    if schema != "rrkal.renderer_skin_asset.v0.2.2":
         raise ValueError(f"[ERROR] 不支援的 schema 版本: {schema}")
         
     kind = manifest.get("kind")
@@ -193,12 +197,14 @@ def validate_renderer_skin_asset(asset_dir):
             expected_ndim=2,
             expected_shape=(h, w),
             expected_raw_nbytes=raw_nbytes,
+            expected_file_size_bytes=file_size_bytes, # 精確比對 elevation 檔案大小
             declared_checksum=checksums.get(elev_rel),
             max_payload_bytes=max_payload_bytes
         )
         
         # B. 驗證 valid_mask payload
         mask_rel = lvl_info.get("valid_mask")
+        mask_file_size = lvl_info.get("valid_mask_file_size_bytes")
         validate_npz_payload(
             skin_root=skin_root,
             rel_path=mask_rel,
@@ -206,13 +212,15 @@ def validate_renderer_skin_asset(asset_dir):
             expected_dtype="uint8",
             expected_ndim=2,
             expected_shape=(h, w),
-            expected_raw_nbytes=None,
+            expected_raw_nbytes=h * w, # 驗證 expected_raw_nbytes = height * width
+            expected_file_size_bytes=mask_file_size, # 精確比對 valid_mask 檔案大小
             declared_checksum=checksums.get(mask_rel),
             max_payload_bytes=max_payload_bytes
         )
         
         # C. 驗證 land_fraction payload
         land_rel = lvl_info.get("land_fraction")
+        land_file_size = lvl_info.get("land_fraction_file_size_bytes")
         validate_npz_payload(
             skin_root=skin_root,
             rel_path=land_rel,
@@ -220,13 +228,15 @@ def validate_renderer_skin_asset(asset_dir):
             expected_dtype="uint8",
             expected_ndim=2,
             expected_shape=(h, w),
-            expected_raw_nbytes=None,
+            expected_raw_nbytes=h * w, # 驗證 expected_raw_nbytes = height * width
+            expected_file_size_bytes=land_file_size, # 精確比對 land_fraction 檔案大小
             declared_checksum=checksums.get(land_rel),
             max_payload_bytes=max_payload_bytes
         )
         
         # D. 驗證 water_fraction payload
         water_rel = lvl_info.get("water_fraction")
+        water_file_size = lvl_info.get("water_fraction_file_size_bytes")
         validate_npz_payload(
             skin_root=skin_root,
             rel_path=water_rel,
@@ -234,13 +244,15 @@ def validate_renderer_skin_asset(asset_dir):
             expected_dtype="uint8",
             expected_ndim=2,
             expected_shape=(h, w),
-            expected_raw_nbytes=None,
+            expected_raw_nbytes=h * w, # 驗證 expected_raw_nbytes = height * width
+            expected_file_size_bytes=water_file_size, # 精確比對 water_fraction 檔案大小
             declared_checksum=checksums.get(water_rel),
             max_payload_bytes=max_payload_bytes
         )
         
-        # E. 驗證 minmax payload
-        minmax_rel = f"payloads/minmax_l{lvl}_i16.npz"
+        # E. 驗證 minmax payload (LOD 全域高程摘要)
+        minmax_rel = lvl_info.get("minmax_path")
+        minmax_file_size = lvl_info.get("minmax_file_size_bytes")
         validate_npz_payload(
             skin_root=skin_root,
             rel_path=minmax_rel,
@@ -249,9 +261,15 @@ def validate_renderer_skin_asset(asset_dir):
             expected_ndim=1,
             expected_shape=(1,),
             expected_raw_nbytes=None,
+            expected_file_size_bytes=minmax_file_size, # 精確比對 minmax 檔案大小
             declared_checksum=checksums.get(minmax_rel),
             max_payload_bytes=max_payload_bytes
         )
+        
+        # 額外校驗 minmax 範圍元數據宣告為 global_lod_summary
+        minmax_scope = lvl_info.get("minmax_scope")
+        if minmax_scope != "global_lod_summary":
+            raise ValueError(f"[ERROR] LOD {lvl} 的 minmax 範圍元數據宣告非法: {minmax_scope}")
         
     print("[+] 恭喜！該皮層資產順利通過 100% 安全 Ingestion 校驗，防禦指標全部綠燈！")
 

@@ -8,7 +8,7 @@ description: >-
 
 ## Overview
 本技能規範了在跨 Agent 協同開發與文檔治理過程中，每當完成一輪實質性更新，便立即進行 Git 本地提交與遠端推送的標準化流程。
-其核心目標是：**強制實施「煙霧測試 (Smoke Test)」、「二進位大檔案防護檢查」與「文檔漂移自檢 (Docs Drift Check)」作為提交的硬性攔截前置門檻**，從物理與流程根源抹殺任何帶病代碼、`.npz` 二進位 Payload 檔案污染遠端公開代碼庫，或是「改了代碼卻忘記更新對應文檔」的 Docs Drift 行為，確保代碼庫與治理文檔的高度一致性與安全性。
+其核心目標是：**強制實施「煙霧測試 (Smoke Test)」、「二進位大檔案防護檢查」與「文檔漂移自檢 (Docs Drift Check)」作為提交的硬性攔截前置門檻**，從物理與流程根源防範帶病代碼、`.npz` 二進位 Payload 檔案污染遠端公開代碼庫，或是「改了代碼卻忘記更新對應文檔」的 Docs Drift 行為，確保代碼庫與治理文檔的高度一致性與安全性。
 
 ## Dependencies
 * 專案內 Ingestion 安全驗證器或煙霧測試腳本（例如：`reference_python/validate_renderer_skin_asset.py`）
@@ -45,7 +45,7 @@ python3 ./reference_python/safe_iteration_commit.py push
 * **自動化執行步驟**：
   1. **測試攔截 (Smoke Hook)**：自動調用 `smoke` 子指令。若煙霧測試未通過，立即拒絕提交並報錯中斷。
   2. **自動暫存 (Auto-Stage)**：執行 `git add .` 將所有變更（排除 `.gitignore` 中配置的檔案）加入暫存區。
-  3. **防漏校驗 (Leak Defense)**：利用 `git diff --cached --name-only` 讀取暫存區，嚴格攔截任何後綴為 `.npz` 的二進位大數據 Payload 檔案，且限制單一文字或代碼檔案大小不得超過 10MB。若發現漏網之魚，立即拒絕提交並回退。
+  3. **防漏校驗 (Leak Defense)**：利用 `git diff --cached --name-only` 讀取暫存區，嚴格攔截任何後綴為 `.npz` 的二進位大數據 Payload 檔案，且限制單一文字或代碼檔案大小。若發現漏網之魚，立即拒絕提交並回退。
   4. **文檔漂移自檢 (Docs Drift Prevention)**：判斷暫存區內若包含實體代碼檔案（`*.py`, `*.js`, `*.ts`, `*.html`, `*.css`）的更新，則**強制要求**暫存區中必須同時包含至少一個治理文檔（`*.md`, `*.csv`）的變更。若代碼變更但無文檔變更，則強硬阻斷提交，除非傳入 `--skip-drift`。
   5. **正式提交 (Git Commit)**：前述校驗完全通過後，正式執行 `git commit -m "<說明>"`，將這輪更新打包落實。
 

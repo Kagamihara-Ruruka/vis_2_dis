@@ -32,6 +32,8 @@ def downsample_2x_float(arr):
     """對 float 陣列進行 2x2 區塊平均 (支援 NaN)"""
     h, w = arr.shape
     out = np.zeros((h // 2, w // 2), dtype=float)
+    # 注意：當前 downsampling 迴圈僅用於參考與展示清晰度 (reference clarity only)；
+    # 產品化實作時，必須使用 vectorized block reduction 進行優化。
     for i in range(h // 2):
         for j in range(w // 2):
             block = arr[i*2:(i+1)*2, j*2:(j+1)*2]
@@ -45,6 +47,8 @@ def downsample_2x_uint8_mean(arr):
     """對 uint8 陣列進行 2x2 區塊平均"""
     h, w = arr.shape
     out = np.zeros((h // 2, w // 2), dtype=np.uint8)
+    # 注意：當前 downsampling 迴圈僅用於參考與展示清晰度 (reference clarity only)；
+    # 產品化實作時，必須使用 vectorized block reduction 進行優化。
     for i in range(h // 2):
         for j in range(w // 2):
             block = arr[i*2:(i+1)*2, j*2:(j+1)*2]
@@ -55,6 +59,8 @@ def downsample_2x_mask(arr):
     """對 mask 陣列進行 2x2 區塊下採樣，只要區塊內有 valid 像素就判定為 valid (255)"""
     h, w = arr.shape
     out = np.zeros((h // 2, w // 2), dtype=np.uint8)
+    # 注意：當前 downsampling 迴圈僅用於參考與展示清晰度 (reference clarity only)；
+    # 產品化實作時，必須使用 vectorized block reduction 進行優化。
     for i in range(h // 2):
         for j in range(w // 2):
             block = arr[i*2:(i+1)*2, j*2:(j+1)*2]
@@ -173,7 +179,7 @@ def build_synthetic_terrain_skin(output_dir):
             32767
         ).astype(np.int16)
         
-        # 計算局部 minmax 陣列
+        # 計算局部 minmax 陣列 (在此明確標記為整個 LOD 級別的 global_lod_summary)
         min_val = int(np.nanmin(h_float)) if np.any(valid_idx) else 0
         max_val = int(np.nanmax(h_float)) if np.any(valid_idx) else 0
         
@@ -199,6 +205,11 @@ def build_synthetic_terrain_skin(output_dir):
         # 計算檔案大小與 SHA-256
         raw_nbytes = int(quantized.nbytes)
         file_size = int(os.path.getsize(elev_path))
+        mask_file_size = int(os.path.getsize(mask_path))
+        land_file_size = int(os.path.getsize(land_path))
+        water_file_size = int(os.path.getsize(water_path))
+        minmax_file_size = int(os.path.getsize(minmax_path))
+        
         checksums[elev_path_rel] = calculate_sha256(elev_path)
         checksums[mask_path_rel] = calculate_sha256(mask_path)
         checksums[land_path_rel] = calculate_sha256(land_path)
@@ -214,8 +225,14 @@ def build_synthetic_terrain_skin(output_dir):
             "file_size_bytes": file_size,
             "compression": "npz_deflate",
             "valid_mask": mask_path_rel,
+            "valid_mask_file_size_bytes": mask_file_size,
             "land_fraction": land_path_rel,
-            "water_fraction": water_path_rel
+            "land_fraction_file_size_bytes": land_file_size,
+            "water_fraction": water_path_rel,
+            "water_fraction_file_size_bytes": water_file_size,
+            "minmax_path": minmax_path_rel,
+            "minmax_file_size_bytes": minmax_file_size,
+            "minmax_scope": "global_lod_summary"  # 明確標記 minmax 為全域 LOD 摘要
         })
         
         # 如果是 LOD 0，則進行真實量化還原誤差計算
@@ -226,15 +243,14 @@ def build_synthetic_terrain_skin(output_dir):
             mae_val = float(np.mean(np.abs(error)))
             p95_val = float(np.percentile(np.abs(error), 95))
             max_err_val = float(np.max(np.abs(error)))
-            ssim_val = float(1.0 - rmse_val / 2000.0)  # 基於量化噪聲比的模擬 ssim
             
-    # 5. 寫入 metrics.json
+    # 5. 寫入 metrics.json (設定 ssim 為 null，排除假值)
     metrics_data = {
         "rmse_meters": rmse_val,
         "mae_meters": mae_val,
         "p95_absolute_error_meters": p95_val,
         "max_absolute_error_meters": max_err_val,
-        "ssim": ssim_val
+        "ssim": None  # ssim 設為 null，未實際計算
     }
     with open(os.path.join(output_dir, "metrics.json"), "w", encoding="utf-8") as f:
         json.dump(metrics_data, f, indent=2, ensure_ascii=False)
@@ -245,11 +261,11 @@ def build_synthetic_terrain_skin(output_dir):
     print(f"    - P95:  {p95_val:.6f} m")
     print(f"    - Max:  {max_err_val:.6f} m")
     
-    # 6. 生成 skins/terrain/manifest.json (符合 v0.2.1 規格)
+    # 6. 生成 skins/terrain/manifest.json (符合 v0.2.2 規格)
     manifest_data = {
-        "schema": "rrkal.renderer_skin_asset.v0.2.1",
+        "schema": "rrkal.renderer_skin_asset.v0.2.2",
         "kind": "terrain",
-        "asset_id": "terrain_synthetic_v0.2.1",
+        "asset_id": "terrain_synthetic_v0.2.2",
         "source_dataset": "SYNTHETIC_GENERATOR_V2",
         "source_fingerprint": source_fingerprint,
         "encoding": {
@@ -294,7 +310,7 @@ def build_synthetic_terrain_skin(output_dir):
     # 7. 生成整體 .vizasset 頂層資產說明
     asset_data = {
         "schema": "rrkal.vizasset.v0",
-        "asset_id": "terrain_synthetic_v0.2.1",
+        "asset_id": "terrain_synthetic_v0.2.2",
         "type": "terrain_skin_pyramid",
         "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "required_skins": {
@@ -304,7 +320,7 @@ def build_synthetic_terrain_skin(output_dir):
     with open(os.path.join(output_dir, "asset.json"), "w", encoding="utf-8") as f:
         json.dump(asset_data, f, indent=2, ensure_ascii=False)
         
-    # 8. 生成 review.json (Review Packet)
+    # 8. 生成 review.json (Review Packet，ssim 設為 null)
     review_data = {
         "review_packet_schema": "rrkal.review_packet.v0",
         "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),

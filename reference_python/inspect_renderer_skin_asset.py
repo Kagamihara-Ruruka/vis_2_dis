@@ -5,15 +5,18 @@ inspect_renderer_skin_asset.py
 功能：對 TerrainSkinAsset 進行 CLI 可讀化診斷與結構性檢查。
 說明：
 1. 檢查並顯示 source_fingerprint 的合法性。
-2. 對金字塔每一級的 elevation, valid_mask, land_fraction, water_fraction, minmax 進行實體 Checksum 校驗。
-3. 計算並顯示 LOD 壓縮比 (Compression Ratio = raw_nbytes / file_size_bytes)。
-4. 顯示 coverage payload 完整度與 review.json 的真實高程誤差 (RMSE, MAE, p95)。
+2. 對金字塔每一級的 elevation, valid_mask, land_fraction, water_fraction, minmax 進行實體 Checksum 與精確 file_size 吻合檢查。
+3. 驗證並顯示 coverage payloads 內存符合 height * width 的 uint8 期望大小。
+4. 顯示 minmax_scope 範圍宣告。
+5. 當 ssim 為空值 (null) 時，顯示 terrain_ssim_not_computed。
+6. 計算並顯示 LOD 數據壓縮比。
 """
 
 import os
 import json
 import hashlib
 import re
+import numpy as np
 
 def calculate_sha256(filepath):
     """計算檔案的 SHA-256 哈希值"""
@@ -25,9 +28,9 @@ def calculate_sha256(filepath):
 
 def inspect_renderer_skin_asset(asset_dir):
     """診斷皮層資產內容"""
-    print("=" * 70)
-    print(f"  [TerrainSkinAsset CLI 診斷工具] - {os.path.basename(asset_dir)}")
-    print("=" * 70)
+    print("=" * 75)
+    print(f"  [TerrainSkinAsset CLI 診斷工具 v0.2.2] - {os.path.basename(asset_dir)}")
+    print("=" * 75)
     
     asset_json = os.path.join(asset_dir, "asset.json")
     if not os.path.exists(asset_json):
@@ -54,9 +57,9 @@ def inspect_renderer_skin_asset(asset_dir):
     skin_root = os.path.dirname(manifest_path)
     checksums = manifest.get("checksums", {})
     
-    print("-" * 60)
+    print("-" * 65)
     print("  [皮層 Manifest 參數]")
-    print("-" * 60)
+    print("-" * 65)
     print(f"  - 綱要版本: {manifest.get('schema')}")
     
     # 驗證 source_fingerprint 的合法性
@@ -78,25 +81,25 @@ def inspect_renderer_skin_asset(asset_dir):
     print("\n  - 金字塔 LOD 層級與 Payload 完整度檢查:")
     for lvl in manifest.get("levels", []):
         lvl_num = lvl.get("level")
-        shape = lvl.get("shape")
+        h, w = lvl.get("shape")
         raw_nbytes = lvl.get("raw_nbytes")
         file_size = lvl.get("file_size_bytes")
         
-        # 計算壓縮比 (raw_nbytes / file_size_bytes)
+        # 計算壓縮比
         comp_ratio = raw_nbytes / file_size if file_size > 0 else 0
         
-        print(f"      [LOD {lvl_num}] shape={shape} | 內存={raw_nbytes}B | 實體={file_size}B | 壓縮比={comp_ratio:.2f}x")
+        print(f"      [LOD {lvl_num}] shape=[{h}, {w}] | 內存={raw_nbytes}B | 實體={file_size}B | 壓縮比={comp_ratio:.2f}x")
         
-        # 校驗各 Payload 實體檔案與 Checksum
+        # 校驗各 Payload 實體檔案、Checksum 與 expected_file_size_bytes
         payloads = {
-            "elevation": lvl.get("path"),
-            "valid_mask": lvl.get("valid_mask"),
-            "land_fraction": lvl.get("land_fraction"),
-            "water_fraction": lvl.get("water_fraction"),
-            "minmax": f"payloads/minmax_l{lvl_num}_i16.npz"
+            "elevation": (lvl.get("path"), file_size, raw_nbytes),
+            "valid_mask": (lvl.get("valid_mask"), lvl.get("valid_mask_file_size_bytes"), h * w),
+            "land_fraction": (lvl.get("land_fraction"), lvl.get("land_fraction_file_size_bytes"), h * w),
+            "water_fraction": (lvl.get("water_fraction"), lvl.get("water_fraction_file_size_bytes"), h * w),
+            "minmax": (lvl.get("minmax_path"), lvl.get("minmax_file_size_bytes"), None)
         }
         
-        for name, rel_p in payloads.items():
+        for name, (rel_p, expected_size, expected_nbytes) in payloads.items():
             abs_p = os.path.join(skin_root, rel_p)
             if not os.path.exists(abs_p):
                 print(f"        [-] {name:<15}: 🛑 檔案缺失 ({rel_p})")
@@ -105,27 +108,58 @@ def inspect_renderer_skin_asset(asset_dir):
             # Checksum 校驗
             declared_hash = checksums.get(rel_p)
             actual_hash = calculate_sha256(abs_p)
-            if actual_hash == declared_hash:
-                print(f"        [+] {name:<15}: ✅ Checksum 吻合 (PASS)")
-            else:
-                print(f"        [-] {name:<15}: 🛑 Checksum 損壞 (EXPECTED {declared_hash} | GOT {actual_hash})")
+            hash_ok = (actual_hash == declared_hash)
+            
+            # File size 檢查
+            actual_size = os.path.getsize(abs_p)
+            size_ok = (actual_size == expected_size)
+            
+            # nbytes 期望大小檢查 (針對 valid_mask, land/water fraction = h * w)
+            nbytes_status = ""
+            if expected_nbytes is not None:
+                # 實體載入校驗 npz
+                try:
+                    npz_data = np.load(abs_p, allow_pickle=False)
+                    actual_nbytes = npz_data["data"].nbytes
+                    if actual_nbytes == expected_nbytes:
+                        nbytes_status = " | ✅ 內存符合 h*w 期望"
+                    else:
+                        nbytes_status = f" | 🛑 內存不匹配 (預期 {expected_nbytes}B, 實際 {actual_nbytes}B)"
+                except Exception as e:
+                    nbytes_status = f" | 🛑 無法讀取內存: {e}"
+            
+            size_label = "✅ file_size 吻合" if size_ok else f"🛑 file_size 損壞 (預期 {expected_size}B, 實際 {actual_size}B)"
+            hash_label = "✅ Checksum 吻合" if hash_ok else "🛑 Checksum 損壞"
+            
+            print(f"        [+] {name:<15}: {hash_label} | {size_label}{nbytes_status}")
+            
+        # 顯示 minmax 範圍與性質
+        minmax_scope = lvl.get("minmax_scope", "unknown")
+        print(f"        [+] minmax_scope   : 範圍性質 (scope): {minmax_scope}")
         
     # 讀取 review.json
     review_path = os.path.join(asset_dir, "review.json")
     if os.path.exists(review_path):
         with open(review_path, "r", encoding="utf-8") as f:
             review = json.load(f)
-        print("-" * 60)
+        print("-" * 65)
         print("  [Review Packet 實體量化誤差憑證]")
-        print("-" * 60)
+        print("-" * 65)
         fidelity = review.get("source_fidelity", {})
         print(f"  - 均方根高程誤差 (RMSE): {fidelity.get('rmse_meters'):.6f} 米")
         print(f"  - 平均絕對誤差 (MAE): {fidelity.get('mae_meters'):.6f} 米")
         print(f"  - P95 最大高程誤差: {fidelity.get('p95_absolute_error_meters'):.6f} 米")
         print(f"  - 最大量化絕對誤差 (Max): {fidelity.get('max_absolute_error_meters'):.6f} 米")
+        
+        ssim = fidelity.get("ssim")
+        if ssim is None:
+            print("  - 結構相似度 (SSIM): terrain_ssim_not_computed")
+        else:
+            print(f"  - 結構相似度 (SSIM): {ssim:.6f}")
+            
         print(f"  - 審查判定 (accepted): {review.get('accepted')}")
         
-    print("=" * 70)
+    print("=" * 75)
 
 if __name__ == "__main__":
     current_dir = os.path.dirname(os.path.abspath(__file__))

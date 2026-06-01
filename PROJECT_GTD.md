@@ -14,7 +14,7 @@
     - 實裝 `validate_renderer_skin_asset.py`：提供 Ingestion 安全 numpy allow_pickle 與 memory bomb 防禦。
     - 實裝 `build_render_layer_spec.py` 與 `inspect_renderer_skin_asset.py`。
     - 執行外部原型端到端自檢，全部防禦指標綠燈通過。
-- `[ ]` **Stage 2: 雙端主寫異步評審與設計意見收集**
+- `[x]` **Stage 2: 雙端主寫異步評審與設計意見收集**
     - 通過 `AGENT_EXCHANGE/inbox/` 發信提請 `c_2` 與 `c_3` 僅針對 RFC v0.2.1 及外部原型代碼進行文字評審。
 - `[ ]` **Stage 3: OceanOpticsSkinAsset 濁度與 Log Scale 量化生成與驗證**
     - 擴充生成器，模擬產生符合 log-scale 量化與有效範圍的 Kd490 濁度金字塔數據包。

@@ -1,8 +1,8 @@
 {
   "schema": "rrkal.vizasset.v0",
-  "asset_id": "terrain_synthetic_v0.2.1",
+  "asset_id": "terrain_synthetic_v0.2.2",
   "type": "terrain_skin_pyramid",
-  "created_at": "2026-06-01T10:43:11.052766+00:00",
+  "created_at": "2026-06-01T12:28:51.115875+00:00",
   "required_skins": {
     "terrain": "skins/terrain/manifest.json"
   }
