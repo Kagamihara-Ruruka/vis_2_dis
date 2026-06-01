@@ -1,0 +1,6 @@
+{
+  "name": "vis_2_dis",
+  "version": "0.2.1",
+  "description": "中介契約層外部參考原型：從資料層/皮層至渲染層/Taichi之雙向轉換適配原型",
+  "smoke_test_command": "python3 ./reference_python/validate_renderer_skin_asset.py"
+}
