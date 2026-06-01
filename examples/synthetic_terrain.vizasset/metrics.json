@@ -1,0 +1,7 @@
+{
+  "rmse_meters": 0.0,
+  "mae_meters": 0.0,
+  "p95_absolute_error_meters": 0.0,
+  "max_absolute_error_meters": 0.0,
+  "ssim": 1.0
+}

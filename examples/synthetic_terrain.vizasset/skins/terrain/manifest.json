@@ -1,0 +1,103 @@
+{
+  "schema": "rrkal.renderer_skin_asset.v0.2.1",
+  "kind": "terrain",
+  "asset_id": "terrain_synthetic_v0.2.1",
+  "source_dataset": "SYNTHETIC_GENERATOR_V2",
+  "source_fingerprint": "sha256:d83d1c1a2e3f4f8e9c0a... [無損合成指紋]",
+  "encoding": {
+    "type": "int16_meter",
+    "scale": 0.5,
+    "offset": 0.0,
+    "nodata_value": -32768
+  },
+  "projection": {
+    "system": "EPSG:4326",
+    "datum": "WGS84",
+    "unit": "degree"
+  },
+  "grid": {
+    "row_order": "south_to_north",
+    "col_order": "west_to_east",
+    "bounds_semantics": "grid_points_inclusive",
+    "lon_wrap": "[-180,180]",
+    "lat_index_formula": "row = (lat + 90) / 180 * (height - 1)",
+    "lon_index_formula": "col = (lon + 180) / 360 * (width - 1)"
+  },
+  "bounds": {
+    "lat_min": -90.0,
+    "lat_max": 90.0,
+    "lon_min": -180.0,
+    "lon_max": 180.0
+  },
+  "limits": {
+    "max_dimension": 65536,
+    "max_levels": 12,
+    "max_payload_bytes": 1073741824,
+    "allow_pickle": false
+  },
+  "levels": [
+    {
+      "level": 0,
+      "path": "payloads/elevation_l0_i16.npz",
+      "shape": [
+        180,
+        360
+      ],
+      "cell_size_deg": 1.0,
+      "raw_nbytes": 129600,
+      "file_size_bytes": 81095,
+      "compression": "npz_deflate",
+      "valid_mask": "payloads/coverage/valid_elevation_mask_l0_u8.npz",
+      "land_fraction": "payloads/coverage/land_fraction_l0_u8.npz",
+      "water_fraction": "payloads/coverage/water_fraction_l0_u8.npz"
+    },
+    {
+      "level": 1,
+      "path": "payloads/elevation_l1_i16.npz",
+      "shape": [
+        90,
+        180
+      ],
+      "cell_size_deg": 2.0,
+      "raw_nbytes": 32400,
+      "file_size_bytes": 13193,
+      "compression": "npz_deflate",
+      "valid_mask": "payloads/coverage/valid_elevation_mask_l1_u8.npz",
+      "land_fraction": "payloads/coverage/land_fraction_l1_u8.npz",
+      "water_fraction": "payloads/coverage/water_fraction_l1_u8.npz"
+    },
+    {
+      "level": 2,
+      "path": "payloads/elevation_l2_i16.npz",
+      "shape": [
+        45,
+        90
+      ],
+      "cell_size_deg": 4.0,
+      "raw_nbytes": 8100,
+      "file_size_bytes": 3666,
+      "compression": "npz_deflate",
+      "valid_mask": "payloads/coverage/valid_elevation_mask_l2_u8.npz",
+      "land_fraction": "payloads/coverage/land_fraction_l2_u8.npz",
+      "water_fraction": "payloads/coverage/water_fraction_l2_u8.npz"
+    }
+  ],
+  "checksums": {
+    "payloads/elevation_l0_i16.npz": "sha256:8444ba2f3ab6943dd6b081efee40a7e13df02450e590af320499183e1054be50",
+    "payloads/coverage/valid_elevation_mask_l0_u8.npz": "sha256:51c4daa2aaf778ab4d14e42580f688a5651f0563b6fa4ac804d1bad6d511c63d",
+    "payloads/coverage/land_fraction_l0_u8.npz": "sha256:423e2cd1c386c39c94cc7b781f51aaa4f8e717cfe3c6f6aac0538f690f0a1c9b",
+    "payloads/coverage/water_fraction_l0_u8.npz": "sha256:b2238176dad40e18305627bf2ed152d868b19f4e70468fc609b4f28634c71caf",
+    "payloads/minmax_l0_i16.npz": "sha256:57c776339b23f1faa7cdc63ee82ddfcd5835a511d829b98d2a3539fdcca90254",
+    "payloads/elevation_l1_i16.npz": "sha256:ecb4830d42161f363e88d4c9f436860c933c4561d5dc847eae4c956e8395ddf5",
+    "payloads/coverage/valid_elevation_mask_l1_u8.npz": "sha256:8e34e414d75c306035a5924266a9010054454941c5d7328b2960f2a5da84b1f1",
+    "payloads/coverage/land_fraction_l1_u8.npz": "sha256:f98d7453e882874838d36c4bedd500b3c16858d7c678ba4baf29534103cfb444",
+    "payloads/coverage/water_fraction_l1_u8.npz": "sha256:bc7f395714153496a4eb102786c240de4412996c3c26f9084e218738ceff87a3",
+    "payloads/minmax_l1_i16.npz": "sha256:57c776339b23f1faa7cdc63ee82ddfcd5835a511d829b98d2a3539fdcca90254",
+    "payloads/elevation_l2_i16.npz": "sha256:c3582e0a99a97aa9a92f36c0c19531c25af3b2d13497433673463286946e0ea2",
+    "payloads/coverage/valid_elevation_mask_l2_u8.npz": "sha256:7ecc94035a3da62a78c266cf2651fd3034e09d9413dce400f9b5e99b64b775c9",
+    "payloads/coverage/land_fraction_l2_u8.npz": "sha256:6c026f74ad416f2c1c1a77a50f83a814814a8e81d2c7405e4a470de4ebc408f7",
+    "payloads/coverage/water_fraction_l2_u8.npz": "sha256:0b5864e94b1e123c98805ce681d956abefbd7d54a1fdcee2b33284eb4a169ef7",
+    "payloads/minmax_l2_i16.npz": "sha256:57c776339b23f1faa7cdc63ee82ddfcd5835a511d829b98d2a3539fdcca90254"
+  },
+  "status": "ready"
+}

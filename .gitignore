@@ -1,0 +1,12 @@
+# Byte-compiled / optimized / DLL support
+__pycache__/
+*.py[cod]
+*$py.class
+
+# OS generated files
+.DS_Store
+.Trash
+.tempmediaStorage/
+
+# Large binary data payloads (Data Governance)
+examples/synthetic_terrain.vizasset/payloads/

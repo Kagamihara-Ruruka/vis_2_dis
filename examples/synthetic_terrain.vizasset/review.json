@@ -1,0 +1,16 @@
+{
+  "review_packet_schema": "rrkal.review_packet.v0",
+  "timestamp": "2026-06-01T10:21:13.002211+00:00",
+  "source_fidelity": {
+    "rmse_meters": 0.0,
+    "mae_meters": 0.0,
+    "p95_absolute_error_meters": 0.0,
+    "max_absolute_error_meters": 0.0,
+    "ssim": 1.0
+  },
+  "verification_policy": {
+    "allow_outliers": false,
+    "max_error_threshold_meters": 0.5
+  },
+  "accepted": true
+}
