@@ -9,4 +9,4 @@ __pycache__/
 .tempmediaStorage/
 
 # Large binary data payloads (Data Governance)
-examples/synthetic_terrain.vizasset/payloads/
+*.npz
