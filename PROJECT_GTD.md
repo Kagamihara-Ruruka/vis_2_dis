@@ -16,12 +16,10 @@
     - 執行外部原型端到端自檢，全部防禦指標綠燈通過。
 - `[x]` **Stage 2: 雙端主寫異步評審與設計意見收集**
     - 通過 `AGENT_EXCHANGE/inbox/` 發信提請 `c_2` 與 `c_3` 僅針對 RFC v0.2.1 及外部原型代碼進行文字評審。
-- `[ ]` **Stage 3: OceanOpticsSkinAsset 濁度與 Log Scale 量化生成與驗證**
-    - 擴充生成器，模擬產生符合 log-scale 量化與有效範圍的 Kd490 濁度金字塔數據包。
-- `[ ]` **Stage 4: 真實地形與海床數據源對接 (GEBCO / ETOPO)**
-    - 呼叫真實的海床數據格網進行量化對接。
-- `[ ]` **Stage 5: 小波變換二進位 Codec 插件 (.vizc) 集成**
-    - 作為未來可選底層 Payload 擴充。
+- `[frozen]` **Stage 3: OceanOpticsSkinAsset 濁度與 Log Scale 量化生成與驗證 (已暫停/凍結)**
+    - *說明：根據 Owner 2026-06-01 20:45 裁決，本專案工作已於 v0.2.2 基準線凍結。優先級正式回歸至 `RRKAL_displaytools` 渲染性能優化。*
+- `[frozen]` **Stage 4: 真實地形與海床數據源對接 (GEBCO / ETOPO) (已暫停/凍結)**
+- `[frozen]` **Stage 5: 小波變換二進位 Codec 插件 (.vizc) 集成 (已暫停/凍結)**
 
 ---
 

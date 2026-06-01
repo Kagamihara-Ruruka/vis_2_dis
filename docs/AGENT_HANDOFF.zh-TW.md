@@ -6,6 +6,23 @@
 
 ---
 
+## 2026-06-01 20:50 RendererSkinAsset external reference prototype v0.2.2 Baseline Frozen
+* **狀態宣告 (Official Status)**：
+  - **`RendererSkinAsset external reference prototype v0.2.2`**
+  - **`Status: accepted as reference baseline`**
+  - **`Caveat: not product-ready, not authorized for product repo integration`**
+* **本輪工作**：
+  - **凍結 v0.2.2 基準線**：根據 Owner 2026-06-01 20:45 權威決策裁定，正式凍結 `vis_2_dis` 專案在 v0.2.2 安全硬化版本作為「外部參考原型基準線」。不開始 Stage 3 (OceanOptics) 或真實數據對接，直至獲得進一步授權。
+  - **優先級轉移**：記錄了 Owner 的路線轉移決定，將本專案置於穩定等待狀態，全專案下一個主優先級正式回歸至 `RRKAL_displaytools runtime optimization`（Taichi 渲染性能優化、target FPS、LOD visibility 等）。
+  - **文檔同步與對齊**：已將此重大決定與狀態標記同步寫入 `AGENT_HANDOFF.zh-TW.md`、`PROJECT_GTD.md` 以及開發日誌。
+* **保持邊界 (Boundaries)**：
+  - 產品 repo 維持唯讀邊界，未偵測到本輪產品 repo 修改。
+  - 繼續保持二進位防漏，測試大數據無任何洩漏。
+* **已驗證 (Verification)**：
+  - 順利通過 `safe_iteration_commit.py` 煙霧測試自檢。
+
+---
+
 ## 2026-06-01 20:30 RendererSkinAsset Stage 2 Cross-Agent Review Initiated
 * **本輪工作**：
   - **完成跨 Agent 評審發信**：在 `AGENT_EXCHANGE/inbox/` 中分別向壓縮主寫 `c_2` (`rrkal-visual-compressor`) 與渲染主寫 `c_3` (`RRKAL_displaytools`) 提交了最新 v0.2.2 安全硬化成果與技術合約 `v0.2.2` 的文字審查提請信。
