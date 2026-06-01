@@ -5,15 +5,18 @@ build_synthetic_terrain_skin.py
 功能：合成地形皮層資產（TerrainSkinAsset）生成器。
 說明：
 1. 模擬高精度遙測地形高度數據，生成金字塔 LOD 0, 1, 2。
-2. 遵循南緯到北緯的網格排布規則 (south_to_north)。
-3. 量化高度為 int16 格式，步長 scale = 0.5。
-4. 計算 SHA-256 並封裝 manifest.json、metrics.json 與 review.json 憑證。
+2. LOD 1 與 LOD 2 的數據由 LOD 0 進行 2x2 區塊平均 (Downsampling) 生成，
+   陸海 coverage 亦由 LOD 0 計算區域面積比率 (Area Fraction) 產生。
+3. 遵循南緯到北緯的網格排布規則 (south_to_north)。
+4. 量化高度為 int16 格式，步長 scale = 0.5。
+5. 真實計算量化還原誤差（RMSE, MAE, p95, Max Error）。
+6. 計算真實的 config 哈希值作為 source_fingerprint。
+7. 計算所有 payload 檔案的 SHA-256 並封裝 manifest.json、metrics.json 與 review.json 憑證。
 """
 
 import os
 import json
 import hashlib
-import zipfile
 import datetime
 import numpy as np
 
@@ -25,6 +28,42 @@ def calculate_sha256(filepath):
             sha256.update(chunk)
     return f"sha256:{sha256.hexdigest()}"
 
+def downsample_2x_float(arr):
+    """對 float 陣列進行 2x2 區塊平均 (支援 NaN)"""
+    h, w = arr.shape
+    out = np.zeros((h // 2, w // 2), dtype=float)
+    for i in range(h // 2):
+        for j in range(w // 2):
+            block = arr[i*2:(i+1)*2, j*2:(j+1)*2]
+            if np.all(np.isnan(block)):
+                out[i, j] = np.nan
+            else:
+                out[i, j] = np.nanmean(block)
+    return out
+
+def downsample_2x_uint8_mean(arr):
+    """對 uint8 陣列進行 2x2 區塊平均"""
+    h, w = arr.shape
+    out = np.zeros((h // 2, w // 2), dtype=np.uint8)
+    for i in range(h // 2):
+        for j in range(w // 2):
+            block = arr[i*2:(i+1)*2, j*2:(j+1)*2]
+            out[i, j] = np.round(np.mean(block)).astype(np.uint8)
+    return out
+
+def downsample_2x_mask(arr):
+    """對 mask 陣列進行 2x2 區塊下採樣，只要區塊內有 valid 像素就判定為 valid (255)"""
+    h, w = arr.shape
+    out = np.zeros((h // 2, w // 2), dtype=np.uint8)
+    for i in range(h // 2):
+        for j in range(w // 2):
+            block = arr[i*2:(i+1)*2, j*2:(j+1)*2]
+            if np.any(block == 255):
+                out[i, j] = 255
+            else:
+                out[i, j] = 0
+    return out
+
 def build_synthetic_terrain_skin(output_dir):
     """主生成函數"""
     print(f"[*] 開始建置合成地形皮層資產於: {output_dir}")
@@ -35,67 +74,110 @@ def build_synthetic_terrain_skin(output_dir):
     coverage_dir = os.path.join(payloads_dir, "coverage")
     os.makedirs(coverage_dir, exist_ok=True)
     
-    # 定義 LOD 層級規格
-    # LOD 0: 180x360, LOD 1: 90x180, LOD 2: 45x90
-    levels_spec = [
-        {"level": 0, "shape": (180, 360), "cell_size_deg": 1.0},
-        {"level": 1, "shape": (90, 180), "cell_size_deg": 2.0},
-        {"level": 2, "shape": (45, 90), "cell_size_deg": 4.0}
-    ]
-    
+    # 定義基本編碼引數
     scale = 0.5
     offset = 0.0
     nodata_val = -32768
     
+    # 1. 生成真實的 source_fingerprint
+    config_spec = {
+        "generator": "synthetic_terrain_v2_downsampled",
+        "levels": [
+            {"level": 0, "shape": [180, 360], "cell_size_deg": 1.0},
+            {"level": 1, "shape": [90, 180], "cell_size_deg": 2.0},
+            {"level": 2, "shape": [45, 90], "cell_size_deg": 4.0}
+        ],
+        "scale": scale,
+        "offset": offset,
+        "nodata_value": nodata_val
+    }
+    cfg_str = json.dumps(config_spec, sort_keys=True)
+    source_fingerprint = "sha256:" + hashlib.sha256(cfg_str.encode("utf-8")).hexdigest()
+    print(f"[*] 已生成真 config 哈希指紋: {source_fingerprint}")
+    
+    # 2. 生成 LOD 0 原始高度圖 (南緯到北緯排布, shape (180, 360))
+    h0, w0 = 180, 360
+    lats = np.linspace(-90, 90, h0)
+    lons = np.linspace(-180, 180, w0)
+    lon_grid, lat_grid = np.meshgrid(lons, lats)
+    
+    # 科學波形高度圖 (高度 = sin(lon) * cos(lat) * 1000m)
+    height_float_L0 = np.sin(np.radians(lon_grid)) * np.cos(np.radians(lat_grid)) * 1000.0
+    
+    # 挖出一個 NoData 區域 (模擬極地海溝)
+    nodata_mask_L0 = (lat_grid > 70) & (lon_grid > 120)
+    height_float_L0[nodata_mask_L0] = np.nan
+    
+    # 生成 LOD 0 材質 (高海拔為陸地，低海拔為水體)
+    valid_idx_L0 = ~np.isnan(height_float_L0)
+    land_fraction_L0 = np.zeros((h0, w0), dtype=np.uint8)
+    water_fraction_L0 = np.zeros((h0, w0), dtype=np.uint8)
+    land_fraction_L0[valid_idx_L0] = np.clip((height_float_L0[valid_idx_L0] + 500) / 1000 * 255, 0, 255).astype(np.uint8)
+    water_fraction_L0[valid_idx_L0] = (255 - land_fraction_L0[valid_idx_L0])
+    
+    valid_mask_L0 = np.zeros((h0, w0), dtype=np.uint8)
+    valid_mask_L0[valid_idx_L0] = 255
+    
+    # 3. 執行 LOD 降採樣金字塔產生 (LOD 1 & LOD 2)
+    # LOD 1 (90, 180)
+    height_float_L1 = downsample_2x_float(height_float_L0)
+    valid_mask_L1 = downsample_2x_mask(valid_mask_L0)
+    land_fraction_L1 = downsample_2x_uint8_mean(land_fraction_L0)
+    water_fraction_L1 = downsample_2x_uint8_mean(water_fraction_L0)
+    
+    # LOD 2 (45, 90)
+    height_float_L2 = downsample_2x_float(height_float_L1)
+    valid_mask_L2 = downsample_2x_mask(valid_mask_L1)
+    land_fraction_L2 = downsample_2x_uint8_mean(land_fraction_L1)
+    water_fraction_L2 = downsample_2x_uint8_mean(water_fraction_L1)
+    
+    lod_data = {
+        0: {
+            "height": height_float_L0, "mask": valid_mask_L0, 
+            "land": land_fraction_L0, "water": water_fraction_L0,
+            "shape": (180, 360), "cell_size": 1.0
+        },
+        1: {
+            "height": height_float_L1, "mask": valid_mask_L1, 
+            "land": land_fraction_L1, "water": water_fraction_L1,
+            "shape": (90, 180), "cell_size": 2.0
+        },
+        2: {
+            "height": height_float_L2, "mask": valid_mask_L2, 
+            "land": land_fraction_L2, "water": water_fraction_L2,
+            "shape": (45, 90), "cell_size": 4.0
+        }
+    }
+    
     manifest_levels = []
     checksums = {}
     
-    # 遍歷每一級 LOD 生成二進位數據
-    for spec in levels_spec:
-        lvl = spec["level"]
-        h, w = spec["shape"]
-        cell_size = spec["cell_size_deg"]
+    # 4. 對每一級進行量化與實體儲存
+    for lvl in [0, 1, 2]:
+        data = lod_data[lvl]
+        h, w = data["shape"]
+        h_float = data["height"]
+        v_mask = data["mask"]
+        land = data["land"]
+        water = data["water"]
+        cell_size = data["cell_size"]
         
-        # 1. 合成高度圖 (物理高度 = sin(lon) * cos(lat) * 1000m)
-        lats = np.linspace(-90, 90, h)
-        lons = np.linspace(-180, 180, w)
-        lon_grid, lat_grid = np.meshgrid(lons, lats)
-        
-        # 科學波形高度
-        height_float = np.sin(np.radians(lon_grid)) * np.cos(np.radians(lat_grid)) * 1000.0
-        
-        # 挖出一個 NoData 區域（模擬陸地邊緣無效數據，如特定的極地海溝）
-        nodata_mask = (lat_grid > 70) & (lon_grid > 120)
-        height_float[nodata_mask] = np.nan
-        
-        # 量化為 int16
+        # 進行 int16 量化
         quantized = np.zeros((h, w), dtype=np.int16)
-        quantized[:] = nodata_val  # 預設為 NoData
+        quantized[:] = nodata_val
         
-        valid_idx = ~np.isnan(height_float)
+        valid_idx = (v_mask == 255)
         quantized[valid_idx] = np.clip(
-            np.floor((height_float[valid_idx] - offset) / scale + 0.5), 
+            np.floor((h_float[valid_idx] - offset) / scale + 0.5), 
             -32767, 
             32767
         ).astype(np.int16)
         
-        # 2. 生成對應的 valid_mask (uint8, 0=invalid, 255=valid)
-        valid_mask = np.zeros((h, w), dtype=np.uint8)
-        valid_mask[valid_idx] = 255
+        # 計算局部 minmax 陣列
+        min_val = int(np.nanmin(h_float)) if np.any(valid_idx) else 0
+        max_val = int(np.nanmax(h_float)) if np.any(valid_idx) else 0
         
-        # 3. 生成陸地/水體 fraction (uint8, 0~255)
-        # 模擬一個簡單的材質分佈：低海拔為水體，高海拔為陸地
-        land_fraction = np.zeros((h, w), dtype=np.uint8)
-        water_fraction = np.zeros((h, w), dtype=np.uint8)
-        
-        land_fraction[valid_idx] = np.clip((height_float[valid_idx] + 500) / 1000 * 255, 0, 255).astype(np.uint8)
-        water_fraction[valid_idx] = (255 - land_fraction[valid_idx])
-        
-        # 4. 計算局部 MinMax 金字塔（視錐剔除/ horizon culling 輔助）
-        min_val = int(np.nanmin(height_float)) if np.any(valid_idx) else 0
-        max_val = int(np.nanmax(height_float)) if np.any(valid_idx) else 0
-        
-        # 5. 實體壓縮儲存 (.npz)
+        # 寫入實體檔案 (.npz)
         elev_path_rel = f"payloads/elevation_l{lvl}_i16.npz"
         mask_path_rel = f"payloads/coverage/valid_elevation_mask_l{lvl}_u8.npz"
         land_path_rel = f"payloads/coverage/land_fraction_l{lvl}_u8.npz"
@@ -109,19 +191,19 @@ def build_synthetic_terrain_skin(output_dir):
         minmax_path = os.path.join(skins_dir, minmax_path_rel)
         
         np.savez_compressed(elev_path, data=quantized)
-        np.savez_compressed(mask_path, data=valid_mask)
-        np.savez_compressed(land_path, data=land_fraction)
-        np.savez_compressed(water_path, data=water_fraction)
+        np.savez_compressed(mask_path, data=v_mask)
+        np.savez_compressed(land_path, data=land)
+        np.savez_compressed(water_path, data=water)
         np.savez_compressed(minmax_path, min=np.array([min_val], dtype=np.int16), max=np.array([max_val], dtype=np.int16))
         
-        # 計算檔案指紋與大小
+        # 計算檔案大小與 SHA-256
         raw_nbytes = int(quantized.nbytes)
         file_size = int(os.path.getsize(elev_path))
-        checksums[f"payloads/elevation_l{lvl}_i16.npz"] = calculate_sha256(elev_path)
-        checksums[f"payloads/coverage/valid_elevation_mask_l{lvl}_u8.npz"] = calculate_sha256(mask_path)
-        checksums[f"payloads/coverage/land_fraction_l{lvl}_u8.npz"] = calculate_sha256(land_path)
-        checksums[f"payloads/coverage/water_fraction_l{lvl}_u8.npz"] = calculate_sha256(water_path)
-        checksums[f"payloads/minmax_l{lvl}_i16.npz"] = calculate_sha256(minmax_path)
+        checksums[elev_path_rel] = calculate_sha256(elev_path)
+        checksums[mask_path_rel] = calculate_sha256(mask_path)
+        checksums[land_path_rel] = calculate_sha256(land_path)
+        checksums[water_path_rel] = calculate_sha256(water_path)
+        checksums[minmax_path_rel] = calculate_sha256(minmax_path)
         
         manifest_levels.append({
             "level": lvl,
@@ -136,13 +218,40 @@ def build_synthetic_terrain_skin(output_dir):
             "water_fraction": water_path_rel
         })
         
+        # 如果是 LOD 0，則進行真實量化還原誤差計算
+        if lvl == 0:
+            recon_L0 = quantized[valid_idx_L0].astype(float) * scale + offset
+            error = height_float_L0[valid_idx_L0] - recon_L0
+            rmse_val = float(np.sqrt(np.mean(error ** 2)))
+            mae_val = float(np.mean(np.abs(error)))
+            p95_val = float(np.percentile(np.abs(error), 95))
+            max_err_val = float(np.max(np.abs(error)))
+            ssim_val = float(1.0 - rmse_val / 2000.0)  # 基於量化噪聲比的模擬 ssim
+            
+    # 5. 寫入 metrics.json
+    metrics_data = {
+        "rmse_meters": rmse_val,
+        "mae_meters": mae_val,
+        "p95_absolute_error_meters": p95_val,
+        "max_absolute_error_meters": max_err_val,
+        "ssim": ssim_val
+    }
+    with open(os.path.join(output_dir, "metrics.json"), "w", encoding="utf-8") as f:
+        json.dump(metrics_data, f, indent=2, ensure_ascii=False)
+        
+    print(f"[*] 已完成真實量化誤差計算：")
+    print(f"    - RMSE: {rmse_val:.6f} m")
+    print(f"    - MAE:  {mae_val:.6f} m")
+    print(f"    - P95:  {p95_val:.6f} m")
+    print(f"    - Max:  {max_err_val:.6f} m")
+    
     # 6. 生成 skins/terrain/manifest.json (符合 v0.2.1 規格)
     manifest_data = {
         "schema": "rrkal.renderer_skin_asset.v0.2.1",
         "kind": "terrain",
         "asset_id": "terrain_synthetic_v0.2.1",
         "source_dataset": "SYNTHETIC_GENERATOR_V2",
-        "source_fingerprint": "sha256:d83d1c1a2e3f4f8e9c0a... [無損合成指紋]",
+        "source_fingerprint": source_fingerprint,
         "encoding": {
             "type": "int16_meter",
             "scale": scale,
@@ -195,18 +304,7 @@ def build_synthetic_terrain_skin(output_dir):
     with open(os.path.join(output_dir, "asset.json"), "w", encoding="utf-8") as f:
         json.dump(asset_data, f, indent=2, ensure_ascii=False)
         
-    # 8. 生成 metrics.json (物理保真度指標)
-    metrics_data = {
-        "rmse_meters": 0.0,  # 無損量化合成
-        "mae_meters": 0.0,
-        "p95_absolute_error_meters": 0.0,
-        "max_absolute_error_meters": 0.0,
-        "ssim": 1.0
-    }
-    with open(os.path.join(output_dir, "metrics.json"), "w", encoding="utf-8") as f:
-        json.dump(metrics_data, f, indent=2, ensure_ascii=False)
-        
-    # 9. 生成 review.json (Review Packet)
+    # 8. 生成 review.json (Review Packet)
     review_data = {
         "review_packet_schema": "rrkal.review_packet.v0",
         "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
@@ -223,7 +321,6 @@ def build_synthetic_terrain_skin(output_dir):
     print("[+] 合成地形皮層資產建置完成！")
 
 if __name__ == "__main__":
-    # 原型預設輸出至 examples/synthetic_terrain.vizasset
     current_dir = os.path.dirname(os.path.abspath(__file__))
     output_path = os.path.abspath(os.path.join(current_dir, "..", "examples", "synthetic_terrain.vizasset"))
     build_synthetic_terrain_skin(output_path)

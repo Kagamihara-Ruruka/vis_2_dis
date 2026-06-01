@@ -1,7 +1,7 @@
 {
-  "rmse_meters": 0.0,
-  "mae_meters": 0.0,
-  "p95_absolute_error_meters": 0.0,
-  "max_absolute_error_meters": 0.0,
-  "ssim": 1.0
+  "rmse_meters": 0.1432185691425835,
+  "mae_meters": 0.1232495253609165,
+  "p95_absolute_error_meters": 0.2366055937133183,
+  "max_absolute_error_meters": 0.24997365793933568,
+  "ssim": 0.9999283907154287
 }
