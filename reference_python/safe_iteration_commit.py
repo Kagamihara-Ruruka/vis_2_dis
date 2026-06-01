@@ -105,7 +105,48 @@ def check_binary_leak(project_root):
         print(f"[🛑 執行數據防漏檢查時發生異常]：{e}")
         return False
 
-def do_safe_commit(project_root, commit_msg):
+def check_docs_drift(project_root):
+    """文檔漂移防護：若有更新代碼 (*.py, *.js)，則強制要求暫存區中必須同時有文檔變更 (*.md, *.csv)"""
+    print("[*] 步驟 2.5：正在對暫存區進行文檔漂移 (Docs Drift Check) 校驗...")
+    try:
+        res = subprocess.run(
+            "git diff --cached --name-only", 
+            shell=True, 
+            cwd=project_root, 
+            capture_output=True, 
+            text=True
+        )
+        if res.returncode != 0:
+            return True
+            
+        staged_files = res.stdout.strip().split("\n")
+        has_code_change = False
+        has_docs_change = False
+        
+        for f in staged_files:
+            if not f:
+                continue
+            # 判斷是否為實體代碼
+            if f.endswith(".py") or f.endswith(".js") or f.endswith(".ts") or f.endswith(".html") or f.endswith(".css"):
+                has_code_change = True
+            # 判斷是否為治理文檔 (README, PROJECT_GTD, logs, specs 等 *.md 或 *.csv)
+            if f.endswith(".md") or f.endswith(".csv"):
+                has_docs_change = True
+                
+        if has_code_change and not has_docs_change:
+            print("[🛑 安全紅線攔截]：文檔漂移防護 (Docs Drift Prevention) 攔截成功！")
+            print("    --> 本輪提交包含了代碼檔案的更新，但暫存區內沒有任何文檔檔案 (*.md, *.csv) 被更新。")
+            print("    --> RRKAL 鐵律：有更新代碼，就必須更新文檔（例如更新 README、AGENT_HANDOFF、DEVELOPMENT_LOG 或 PROJECT_GTD 進行記錄）！")
+            print("[!] 請更新對應文檔並執行 'git add' 暫存後，重新嘗試 Commit。")
+            return False
+            
+        print("[+] 暫存區文檔對齊檢查通過 (DOCS DRIFT PASS)！")
+        return True
+    except Exception as e:
+        print(f"[🛑 執行文檔漂移檢查時發生異常]：{e}")
+        return False
+
+def do_safe_commit(project_root, commit_msg, skip_drift=False):
     """執行安全 Commit"""
     if not commit_msg:
         print("[X] 錯誤: 請提供本次 commit 的中文說明訊息！")
@@ -116,16 +157,25 @@ def do_safe_commit(project_root, commit_msg):
         print("[🛑 拒絕 Commit]：因煙霧測試失敗，已強硬攔截提交。請先修正代碼缺陷。")
         sys.exit(1)
         
-    # 2. 二進位防漏檢查
+    # 2. 自動暫存變更
     # 先將所有工作區變動 add 到暫存區（除了被 gitignore 的部分）
     print("[*] 正在暫存工作區變動...")
     subprocess.run("git add .", shell=True, cwd=project_root)
     
+    # 3. 二進位防漏檢查
     if not check_binary_leak(project_root):
         print("[🛑 拒絕 Commit]：因暫存區包含二進位大檔案，已強硬攔截提交。")
         sys.exit(1)
         
-    # 3. 執行 Git Commit
+    # 4. 文檔漂移防護校驗
+    if not skip_drift:
+        if not check_docs_drift(project_root):
+            print("[🛑 拒絕 Commit]：因未同步更新文檔，已被文檔漂移自檢強硬攔截。")
+            sys.exit(1)
+    else:
+        print("[!] 警告: 已跳過文檔漂移自檢 (Skip Docs Drift Check)。")
+        
+    # 5. 執行 Git Commit
     print(f"[*] 步驟 3：正在執行 Git Commit...")
     cmd = ["git", "commit", "-m", commit_msg]
     res = subprocess.run(cmd, cwd=project_root)
@@ -157,11 +207,13 @@ def main():
     # commit subcommand
     commit_parser = subparsers.add_parser("commit", help="執行煙霧與防漏校驗，無誤後進行 Commit")
     commit_parser.add_argument("-m", "--message", required=True, help="繁體中文 commit 說明訊息")
+    commit_parser.add_argument("--skip-drift", action="store_true", help="跳過文檔漂移 (Docs Drift) 檢查")
     
     # push subcommand
     subparsers.add_parser("push", help="將 main 分支安全推送遠端")
     
-    args = parser.parse_code = parser.parse_args()
+    # 這裡修正原先的 args 賦值小手誤
+    args = parser.parse_args()
     project_root = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
     
     if args.command == "smoke":
@@ -169,7 +221,7 @@ def main():
             sys.exit(0)
         sys.exit(1)
     elif args.command == "commit":
-        do_safe_commit(project_root, args.message)
+        do_safe_commit(project_root, args.message, skip_drift=args.skip_drift)
     elif args.command == "push":
         do_safe_push(project_root)
     else:
@@ -177,3 +229,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

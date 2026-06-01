@@ -6,6 +6,17 @@
 
 ---
 
+## 2026-06-01 18:33 Docs Drift Prevention Hook & Skill Refactor
+* **本輪工作**：正式將「有更新代碼，就要更新文檔 (Docs Drift Check)」的硬性指標列為系統技能，並物理實裝進 `safe_iteration_commit.py` 提交腳本。當暫存區內包含實體代碼（`*.py`、`*.js` 等）變更時，強制要求必須同時包含至少一個文檔檔案（`*.md`、`*.csv`）的變更，否則自動攔截阻斷提交，徹底杜絕文檔漂移。同時更新了系統級 Skill 與專案內部 `specs/git_iterative_commit_skill.md`。
+* **保持邊界 (Boundaries)**：
+  - 本次變更僅限於系統與專案技能定義及 safe_iteration_commit.py 輔助腳本，不污染或修改任何唯讀專案。
+  - 二進位過濾規則與 Ingestion 驗證邏輯維持 100% 不變。
+* **已驗證 (Verification)**：
+  - 成功完成「紅線攔截實戰測試」：在未修改文檔的狀態下執行 `commit`，Docs Drift Check 自動捕獲代碼更新，**予以完全合規之強硬阻斷（紅線成功攔截）**。
+  - 在更新此接力卡文檔（`*.md`）後，暫存區包含代碼與文檔更新，順利通過自檢並提交推送成功！
+
+---
+
 ## 2026-06-01 18:28 Git Iterative Commit Skill & Project asset.json Metadata Configuration
 * **本輪工作**：正式在系統的 `skills` 目錄下封裝並註冊了 `git-iterative-commit-governance` 自訂技能，並在專案根目錄下配置了 `asset.json`，指定煙霧測試指令。同時透過專用輔助腳本 `safe_iteration_commit.py` 成功在 `vis_2_dis` 中「補做」了一輪安全 Commit 與遠端 main 分支推送。
 * **保持邊界 (Boundaries)**：
