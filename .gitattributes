@@ -1,0 +1,9 @@
+# Normalize line endings for all text files to LF in the repository
+* text=auto
+
+# Specify explicit LF for source and documentation files
+*.py text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+*.gitignore text eol=lf
+.gitattributes text eol=lf
