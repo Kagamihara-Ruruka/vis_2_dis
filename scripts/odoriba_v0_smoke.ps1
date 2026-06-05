@@ -1,5 +1,7 @@
 param(
-    [string]$Translator = "mock_view_v0"
+    [string]$Translator = "mock_view_v0",
+    [ValidateSet("positive", "negative")]
+    [string]$Mode = "positive"
 )
 
 $ErrorActionPreference = "Stop"
@@ -14,10 +16,14 @@ $env:ODORIBA_SMOKE_TRANSLATOR = $Translator
 
 $pythonTemplate = @'
 import json
+import sys
 
 from rrkal_odoriba.cards import OperationRequestCard
 from rrkal_odoriba.core import OdoribaCore
 from rrkal_odoriba.translators import MockTranslator
+
+MODE = "__ODORIBA_SMOKE_MODE__"
+REQUESTED_TRANSLATOR = "__ODORIBA_SMOKE_TRANSLATOR__"
 
 
 def normalize_payload(payload: dict) -> dict:
@@ -39,7 +45,9 @@ request_card = OperationRequestCard(
     operation="mock_translate",
     requested_view="summary",
     target_domain="smoke-domain",
-    requested_translator="__ODORIBA_SMOKE_TRANSLATOR__",
+    requested_translator=(
+        REQUESTED_TRANSLATOR if MODE == "positive" else f"unknown_{REQUESTED_TRANSLATOR}"
+    ),
     evidence_required=False,
 )
 
@@ -51,7 +59,13 @@ result_payload = normalize_payload(result.to_json_compatible_dict())
 
 assert request_payload["card_kind"] == "OperationRequestCard"
 assert result_payload["card_kind"] == "TranslationResultCard"
-assert result_payload["status"] in {"success", "success_with_no_evidence", "failed"}
+if MODE == "positive":
+    assert result_payload["status"] in {"success", "success_with_no_evidence", "failed"}
+else:
+    assert result_payload["status"] == "failed"
+    assert any("Unknown translator" in item for item in result_payload["diagnostics"])
+
+assert isinstance(result_payload["card_id"], str)
 assert isinstance(request_payload["evidence_refs"], list)
 assert isinstance(result_payload["evidence_refs"], list)
 
@@ -63,6 +77,6 @@ print("SMOKE_RESULT_JSON=" + result_json)
 print("SMOKE_OK")
 '@
 
-$python = $pythonTemplate.Replace("__ODORIBA_SMOKE_TRANSLATOR__", $env:ODORIBA_SMOKE_TRANSLATOR)
+$python = $pythonTemplate.Replace("__ODORIBA_SMOKE_TRANSLATOR__", $env:ODORIBA_SMOKE_TRANSLATOR).Replace("__ODORIBA_SMOKE_MODE__", $Mode)
 
 $python | py -3 -B -c "import sys; exec(sys.stdin.read())"

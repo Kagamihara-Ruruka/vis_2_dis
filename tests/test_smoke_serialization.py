@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+import json
+import subprocess
+import sys
+from pathlib import Path
+
 from rrkal_odoriba.cards import OperationRequestCard, ViewCard
 from rrkal_odoriba.results import TranslationResultCard, TranslationResultStatus
 
@@ -71,3 +76,56 @@ def test_view_card_to_json_compatible_is_compatible() -> None:
 
     assert payload["card_kind"] == "ViewCard"
     assert isinstance(payload["hints"], tuple)
+
+
+def _run_smoke(mode: str, translator: str) -> str:
+    repo_root = Path(__file__).resolve().parents[1]
+    script_path = repo_root / "scripts" / "odoriba_v0_smoke.ps1"
+    command = [
+        "powershell",
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        str(script_path),
+        "-Mode",
+        mode,
+        "-Translator",
+        translator,
+    ]
+    completed = subprocess.run(
+        command,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    if completed.stderr:
+        print(completed.stderr, file=sys.stderr)
+    return completed.stdout
+
+
+def test_smoke_script_positive_mode() -> None:
+    output = _run_smoke("positive", "mock_view_v0")
+    assert "SMOKE_OK" in output
+    lines = [
+        line.split("=", 1)[1]
+        for line in output.splitlines()
+        if line.startswith("SMOKE_RESULT_JSON=")
+    ]
+    assert lines
+    result_payload = json.loads(lines[0])
+    assert result_payload["card_kind"] == "TranslationResultCard"
+
+
+def test_smoke_script_negative_unknown_translator_rejected() -> None:
+    output = _run_smoke("negative", "mock_view_v0")
+    assert "SMOKE_OK" in output
+    lines = [
+        line.split("=", 1)[1]
+        for line in output.splitlines()
+        if line.startswith("SMOKE_RESULT_JSON=")
+    ]
+    assert lines
+    result_payload = json.loads(lines[0])
+    assert result_payload["status"] == "failed"
+    assert "Unknown translator" in "".join(result_payload["diagnostics"])
