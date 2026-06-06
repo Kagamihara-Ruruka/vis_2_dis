@@ -37,23 +37,35 @@ if (-not $repoExists) {
 }
 
 $repoRootResolved = (Resolve-Path $RepoRoot).Path
-$testsDir = Join-Path $repoRootResolved 'tests'
-$scriptsDir = Join-Path $repoRootResolved 'scripts'
-$smokePath = Join-Path $scriptsDir 'odoriba_v0_smoke.ps1'
-$helperPath = Join-Path $scriptsDir 'validate_odoriba_v0_result_fixtures.py'
+Set-Location $repoRootResolved
+
+$testsDir = 'tests'
+$smokePath = Join-Path $repoRootResolved 'scripts\odoriba_v0_smoke.ps1'
+$helperPath = 'scripts/validate_odoriba_v0_result_fixtures.py'
+$skipPytest = $env:ODORIBA_CHECKPOINT_RECURSION_GUARD -eq '1'
 
 $commandArgs = @{
     SuppressOutput = $Json.IsPresent
 }
 
-$okPytest = Invoke-CommandAndReport -Name 'pytest_passed' -FilePath 'py' -Arguments @('-3', '-B', '-m', 'pytest', $testsDir, '-q') @commandArgs
+$okPytest = if ($skipPytest) {
+    $true
+} else {
+    Invoke-CommandAndReport -Name 'pytest_passed' -FilePath 'py' -Arguments @('-3', '-B', '-m', 'pytest', $testsDir, '-q') @commandArgs
+}
 $okFixtureValidation = Invoke-CommandAndReport -Name 'fixture_validation_passed' -FilePath 'py' -Arguments @('-3', '-B', $helperPath) @commandArgs
 $okFixtureSchema = Invoke-CommandAndReport -Name 'fixture_schema_validation_passed' -FilePath 'py' -Arguments @('-3', '-B', $helperPath, 'schema') @commandArgs
 $okPositiveSmoke = Invoke-CommandAndReport -Name 'positive_smoke_passed' -FilePath 'powershell' -Arguments @(
-    '-ExecutionPolicy', 'Bypass', '-File', $smokePath, '-Mode', 'positive', '-Translator', 'mock_view_v0'
+    '-ExecutionPolicy',
+    'Bypass',
+    '-Command',
+    "& '$smokePath' -Mode positive -Translator mock_view_v0"
 ) @commandArgs
 $okNegativeSmoke = Invoke-CommandAndReport -Name 'negative_smoke_passed' -FilePath 'powershell' -Arguments @(
-    '-ExecutionPolicy', 'Bypass', '-File', $smokePath, '-Mode', 'negative', '-Translator', 'mock_view_v0'
+    '-ExecutionPolicy',
+    'Bypass',
+    '-Command',
+    "& '$smokePath' -Mode negative -Translator mock_view_v0"
 ) @commandArgs
 
 if ($Json) {

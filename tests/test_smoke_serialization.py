@@ -1,12 +1,22 @@
 from __future__ import annotations
 
+import os
 import json
 import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 from rrkal_odoriba.cards import OperationRequestCard, ViewCard
 from rrkal_odoriba.results import TranslationResultCard, TranslationResultStatus
+
+
+def _preferred_repo_root() -> Path:
+    local_root = Path(r"L:\vis_2_dis")
+    if local_root.exists():
+        return local_root
+    return Path(__file__).resolve().parents[1]
 
 
 def test_request_to_json_compatible_contains_required_fields() -> None:
@@ -162,3 +172,80 @@ def test_smoke_script_negative_unknown_translator_rejected() -> None:
     result_payload = json.loads(lines[0])
     assert result_payload["status"] == "failed"
     assert "Unknown translator" in "".join(result_payload["diagnostics"])
+
+
+def _run_checkpoint_json() -> subprocess.CompletedProcess[str]:
+    repo_root = _preferred_repo_root()
+    script_path = repo_root / "scripts" / "odoriba_v0_checkpoint.ps1"
+    env = os.environ.copy()
+    env["ODORIBA_CHECKPOINT_RECURSION_GUARD"] = "1"
+    return subprocess.run(
+        [
+            "powershell",
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-Command",
+            f"& '{script_path}' -Json",
+        ],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        env=env,
+    )
+
+
+def test_checkpoint_json_output_is_pure_json_and_flags_are_boundaried() -> None:
+    if os.environ.get("ODORIBA_CHECKPOINT_RECURSION_GUARD") == "1":
+        pytest.skip("Skip recursive checkpoint self-check while validating checkpoint output")
+
+    completed = _run_checkpoint_json()
+    assert completed.returncode == 0
+    payload = json.loads(completed.stdout)
+    assert payload["checkpoint_passed"] is True
+    assert payload["repo_rename"] is False
+    assert payload["cross_repo_integration"] is False
+    assert payload["core_changed"] is False
+    assert payload["smoke_script_changed"] is False
+
+    forbidden_tokens = [
+        "SMOKE_REQUEST_JSON=",
+        "SMOKE_RESULT_JSON=",
+        "SMOKE_OK",
+        "warning:",
+        "[100%]",
+        "error:",
+        "FAILED",
+        "passed in ",
+    ]
+    for token in forbidden_tokens:
+        assert token not in completed.stdout
+
+
+def test_checkpoint_human_output_preserves_key_value_mode() -> None:
+    if os.environ.get("ODORIBA_CHECKPOINT_RECURSION_GUARD") == "1":
+        pytest.skip("Skip recursive checkpoint self-check while validating checkpoint output")
+
+    repo_root = _preferred_repo_root()
+    script_path = repo_root / "scripts" / "odoriba_v0_checkpoint.ps1"
+    completed = subprocess.run(
+        [
+            "powershell",
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-Command",
+            f"& '{script_path}'",
+        ],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        env={**os.environ, "ODORIBA_CHECKPOINT_RECURSION_GUARD": "1"},
+    )
+    assert completed.returncode == 0
+
+    output = completed.stdout
+    assert "pytest_passed=passed" in output
+    assert "checkpoint_passed=true" in output
+    assert "repo_rename=false" in output
+    assert "cross_repo_integration=false" in output
