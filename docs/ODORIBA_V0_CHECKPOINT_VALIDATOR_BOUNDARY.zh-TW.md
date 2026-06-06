@@ -118,3 +118,7 @@
 - payload/raw/dataframe/binary 內容欄位
 - `generic metadata container`（未受約束的通用 metadata 字典逃逸口）
 - DI / plugin / async queue / network IO / DB / manifest pipeline
+
+關聯合約索引：
+
+- [ODORIBA_V0_CHECKPOINT_CONTRACT_INDEX.zh-TW.md](/L:/vis_2_dis/docs/ODORIBA_V0_CHECKPOINT_CONTRACT_INDEX.zh-TW.md)
