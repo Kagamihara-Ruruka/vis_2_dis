@@ -117,6 +117,39 @@ def test_smoke_script_positive_mode() -> None:
     assert result_payload["card_kind"] == "TranslationResultCard"
 
 
+def test_smoke_script_positive_mode_rejects_unknown_translator() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    script_path = repo_root / "scripts" / "odoriba_v0_smoke.ps1"
+    completed = subprocess.run(
+        [
+            "powershell",
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            str(script_path),
+            "-Mode",
+            "positive",
+            "-Translator",
+            "o1_unknown_probe",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    combined = (completed.stdout or "") + (completed.stderr or "")
+    assert completed.returncode != 0
+    assert "SMOKE_OK" not in combined
+    lines = [
+        line.split("=", 1)[1]
+        for line in completed.stdout.splitlines()
+        if line.startswith("SMOKE_RESULT_JSON=")
+    ]
+    if lines:
+        payload = json.loads(lines[0])
+        assert payload["status"] == "failed"
+        assert "Unknown translator" in "".join(payload["diagnostics"])
+
+
 def test_smoke_script_negative_unknown_translator_rejected() -> None:
     output = _run_smoke("negative", "mock_view_v0")
     assert "SMOKE_OK" in output

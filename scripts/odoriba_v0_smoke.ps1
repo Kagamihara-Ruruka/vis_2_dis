@@ -60,7 +60,7 @@ result_payload = normalize_payload(result.to_json_compatible_dict())
 assert request_payload["card_kind"] == "OperationRequestCard"
 assert result_payload["card_kind"] == "TranslationResultCard"
 if MODE == "positive":
-    assert result_payload["status"] in {"success", "success_with_no_evidence", "failed"}
+    assert result_payload["status"] in {"success", "success_with_no_evidence"}
 else:
     assert result_payload["status"] == "failed"
     assert any("Unknown translator" in item for item in result_payload["diagnostics"])
@@ -79,4 +79,15 @@ print("SMOKE_OK")
 
 $python = $pythonTemplate.Replace("__ODORIBA_SMOKE_TRANSLATOR__", $env:ODORIBA_SMOKE_TRANSLATOR).Replace("__ODORIBA_SMOKE_MODE__", $Mode)
 
-$python | py -3 -B -c "import sys; exec(sys.stdin.read())"
+$pythonOutput = $python | py -3 -B -c "import sys; exec(sys.stdin.read())" 2>&1
+if ($pythonOutput) {
+    $pythonOutput | ForEach-Object { Write-Output $_ }
+}
+
+if ($LASTEXITCODE -ne 0) {
+    exit $LASTEXITCODE
+}
+
+if ($Mode -eq "positive" -and -not ($pythonOutput -join "`n" -match "SMOKE_OK")) {
+    exit 1
+}

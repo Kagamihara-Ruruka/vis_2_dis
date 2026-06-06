@@ -27,8 +27,10 @@
 - 斷言輸出：
   - `request.card_kind == "OperationRequestCard"`
   - `result.card_kind == "TranslationResultCard"`
-  - `result.status` 為 `success` / `success_with_no_evidence` / `failed` 之一
-  - `evidence_refs` 為可序列化的 list
+- `result.status` 僅可為 `success` / `success_with_no_evidence`（positive mode）
+- `negative` mode 要求 `status == failed` 且 `diagnostics` 含有 `Unknown translator`
+- positive mode 若輸出 `status == failed`，Smoke 應以非零 exit code 結束，且不輸出 `SMOKE_OK`
+- `evidence_refs` 為可序列化的 list
 - 印出：
   - `SMOKE_REQUEST_JSON=...`
   - `SMOKE_RESULT_JSON=...`
