@@ -128,6 +128,16 @@
    - 驗證 `status`、`diagnostics`、`evidence_refs`、`output_card_ref` 與 fixture 欄位一致。
    - 驗證 positive/unknown 的 exit code 與 `SMOKE_OK` 規則。
 
+## Local validation helper
+新增 `scripts/validate_odoriba_v0_result_fixtures.py`，可直接進行：
+- result fixture shape/safety 靜態檢查（`schema`, `fixture_id`, `mode`, `verified`, 欄位禁止規則）
+- 可選 smoke 執行檢查（預設模式）
+- fixture `translation_result` 與 live smoke `SMOKE_RESULT_JSON` 核心欄位一致性比對
+
+建議執行方式：
+- `py -3 -B scripts\\validate_odoriba_v0_result_fixtures.py`（預設 smoke 驗證）
+- `py -3 -B scripts\\validate_odoriba_v0_result_fixtures.py schema`（純 schema/safety 靜態檢查）
+
 ## 實體 fixture 已存在
 - 新增 `tests/fixtures/odoriba_v0_result_packets/positive_success.json`
 - 新增 `tests/fixtures/odoriba_v0_result_packets/negative_unknown_translator.json`
