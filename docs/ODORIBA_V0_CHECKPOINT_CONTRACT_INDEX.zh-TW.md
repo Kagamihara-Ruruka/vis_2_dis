@@ -8,6 +8,7 @@ Odoriba v0 checkpoint/validator/fixture 的驗證鏈條如下：
 - result fixture validator: `scripts\validate_odoriba_v0_result_fixtures.py`
 - fixture packet design: `docs\ODORIBA_V0_RESULT_FIXTURE_PACKET_DESIGN.zh-TW.md`
 - checkpoint boundary index: `docs\ODORIBA_V0_CHECKPOINT_VALIDATOR_BOUNDARY.zh-TW.md`
+- translator registry negative fixture matrix: `docs\ODORIBA_TRANSLATOR_REGISTRY_NEGATIVE_FIXTURE_MATRIX.zh-TW.md`
 
 ## Contract chain (minimal mock flow)
 
@@ -126,3 +127,14 @@ Odoriba v0 邊界先用文件 gate 固定 registry 行為：
 - no unrestricted 通用 metadata 容器
 - no repository rename claim
 - no product/integration completion assertion
+
+## Registry negative fixture matrix (negative path precondition)
+
+- 對應文件：`docs\ODORIBA_TRANSLATOR_REGISTRY_NEGATIVE_FIXTURE_MATRIX.zh-TW.md`
+- 用途：規劃未實作階段的 translator registry 負向條件矩陣
+- 覆蓋案例：
+  - 已知 id 成功分派（positive）
+  - 未知 id 拒絕
+  - 重複 id 決定性行為
+  - 禁止自動載入流程（含動態匯入、外掛式自動載入、依賴注入式決策）
+  - output 邊界仍由 `OdoribaCore` 回傳 result
