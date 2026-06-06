@@ -138,6 +138,25 @@
 - `py -3 -B scripts\\validate_odoriba_v0_result_fixtures.py`（預設 smoke 驗證）
 - `py -3 -B scripts\\validate_odoriba_v0_result_fixtures.py schema`（純 schema/safety 靜態檢查）
 
+## Checkpoint bundle (mock v0)
+新增 `scripts/odoriba_v0_checkpoint.ps1`，集中執行：
+- pytest 全量測試
+- fixture validation helper
+- fixture schema validation
+- positive/negative smoke（mock-only）
+
+執行方式：
+- `powershell -ExecutionPolicy Bypass -File L:\vis_2_dis\scripts\odoriba_v0_checkpoint.ps1`
+
+輸出欄位（每項為 passed/failed）：
+- `pytest_passed`
+- `fixture_validation_passed`
+- `fixture_schema_validation_passed`
+- `positive_smoke_passed`
+- `negative_smoke_passed`
+- `repo_rename=false`
+- `cross_repo_integration=false`
+
 ## 實體 fixture 已存在
 - 新增 `tests/fixtures/odoriba_v0_result_packets/positive_success.json`
 - 新增 `tests/fixtures/odoriba_v0_result_packets/negative_unknown_translator.json`
