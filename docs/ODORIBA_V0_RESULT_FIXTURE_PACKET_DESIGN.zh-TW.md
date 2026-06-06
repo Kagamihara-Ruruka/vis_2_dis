@@ -156,6 +156,26 @@
 - `negative_smoke_passed`
 - `repo_rename=false`
 - `cross_repo_integration=false`
+- `core_changed=false`
+- `smoke_script_changed=false`
+
+加上 `-Json` 後，checkpoint 會改為輸出一個 JSON 物件（machine-readable），必填欄位與文字模式一致並補齊：
+- `schema`
+- `status`（`passed` / `failed`）
+- `pytest_passed`
+- `fixture_validation_passed`
+- `fixture_schema_validation_passed`
+- `positive_smoke_passed`
+- `negative_smoke_passed`
+- `repo_rename`
+- `cross_repo_integration`
+- `core_changed`
+- `smoke_script_changed`
+- `checkpoint_passed`
+- `boundary`
+
+命令：
+`powershell -ExecutionPolicy Bypass -File L:\vis_2_dis\scripts\odoriba_v0_checkpoint.ps1 -Json`
 
 ## 實體 fixture 已存在
 - 新增 `tests/fixtures/odoriba_v0_result_packets/positive_success.json`
