@@ -91,5 +91,14 @@ graph TD
 
 ---
 
+
+## Canonical status wording (2026-06-06)
+- Repo identity: still `vis_2_dis`; rename not yet executed.
+- Package namespace: `rrkal_odoriba` in local prototype.
+- v0 mock reflex arc exists: `OperationRequestCard -> OdoribaCore -> mock translator -> ViewCard -> TranslationResultCard`.
+- `c_4` has been activated for bounded local prototype implementation and smoke/tests validation.
+- No repo rename yet; no runtime integration with `c_1` / `c_2` / `c_3` yet.
+- No raw data / cleaning layer / DI / plugin / syntax island behavior in Odoriba v0 scope.
+
 ### 邊界聲明 (Boundary Statement)
-> No c_1 / c_2 / c_3 product-mainline changes. vis_2_dis received only a hygiene line-ending policy commit. This note is rename-prep / boundary-mapping only, not product integration.
+> rename status: repo remains `vis_2_dis`; no repo rename yet, and no runtime integration with `c_1` / `c_2` / `c_3` has occurred. `rrkal_odoriba` mock prototype is active in-place, not product-ready.
