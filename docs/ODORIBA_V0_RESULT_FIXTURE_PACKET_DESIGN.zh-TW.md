@@ -23,6 +23,7 @@
 - `schema`
 - `fixture_id`
 - `mode`（`positive` / `negative`）
+- `smoke_translator_arg`（供測試輸入，避免與 `request_card.requested_translator` 混用）
 - `request_card`
 - `translation_result`
 - `expected_status`
@@ -50,6 +51,7 @@
 - `request_card_ref`
 - `source_card_ref`
 - `translator_id`
+- `boundary_scope`（可選；如存在需與 request/card/result 一致）
 
 ## Positive path expected shape
 - `mode`: `positive`
@@ -125,6 +127,11 @@
    - 驗證 `SMOKE_RESULT_JSON` 是否可解析。
    - 驗證 `status`、`diagnostics`、`evidence_refs`、`output_card_ref` 與 fixture 欄位一致。
    - 驗證 positive/unknown 的 exit code 與 `SMOKE_OK` 規則。
+
+## 實體 fixture 已存在
+- 新增 `tests/fixtures/odoriba_v0_result_packets/positive_success.json`
+- 新增 `tests/fixtures/odoriba_v0_result_packets/negative_unknown_translator.json`
+- 新增 `tests/test_result_fixture_packets.py`（參照上述 fixture 檢查 smoke 輸出與邊界規則）
 
 ## Boundary statement
 此文件僅定義 v0 docs/evidence design。

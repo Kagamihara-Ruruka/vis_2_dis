@@ -1,0 +1,40 @@
+{
+  "schema": "RRKAL_Odoriba_v0_result_fixture_packet",
+  "fixture_id": "v0-positive-success-001",
+  "mode": "positive",
+  "smoke_translator_arg": "mock_view_v0",
+  "request_card": {
+    "card_kind": "OperationRequestCard",
+    "card_id": "smoke-req-001",
+    "requested_translator": "mock_view_v0",
+    "requested_view": "summary",
+    "subject_ref": "asset:smoke-alpha",
+    "source_card_ref": "asset-card-smoke-001",
+    "boundary_scope": "RRKAL_odoriba_reflex_arc_v0"
+  },
+  "translation_result": {
+    "card_kind": "TranslationResultCard",
+    "card_id": "smoke-req-001::result",
+    "status": "success",
+    "evidence_refs": [],
+    "diagnostics": [
+      "Translator mock_view_v0 completed.",
+      "No evidence refs were emitted because this is a mock prototype translator.",
+      "Mock output accepted without evidence references."
+    ],
+    "output_card_ref": "smoke-req-001::summary",
+    "source_card_ref": "asset-card-smoke-001",
+    "request_card_ref": "smoke-req-001",
+    "translator_id": "mock_view_v0"
+  },
+  "expected_status": "success",
+  "expected_diagnostics_contains": [
+    "Translator mock_view_v0 completed."
+  ],
+  "expected_evidence_refs": [],
+  "expected_output_card_ref": "smoke-req-001::summary",
+  "expected_exit_code": 0,
+  "expected_smoke_ok": true,
+  "verified": false,
+  "boundary_scope": "RRKAL_odoriba_reflex_arc_v0"
+}

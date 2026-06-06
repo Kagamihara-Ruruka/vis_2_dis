@@ -1,0 +1,38 @@
+{
+  "schema": "RRKAL_Odoriba_v0_result_fixture_packet",
+  "fixture_id": "v0-negative-unknown-001",
+  "mode": "negative",
+  "smoke_translator_arg": "mock_view_v0",
+  "request_card": {
+    "card_kind": "OperationRequestCard",
+    "card_id": "smoke-req-001",
+    "requested_translator": "unknown_mock_view_v0",
+    "requested_view": "summary",
+    "subject_ref": "asset:smoke-alpha",
+    "source_card_ref": "asset-card-smoke-001",
+    "boundary_scope": "RRKAL_odoriba_reflex_arc_v0"
+  },
+  "translation_result": {
+    "card_kind": "TranslationResultCard",
+    "card_id": "smoke-req-001::result",
+    "status": "failed",
+    "evidence_refs": [],
+    "diagnostics": [
+      "Unknown translator: unknown_mock_view_v0"
+    ],
+    "output_card_ref": "",
+    "source_card_ref": "asset-card-smoke-001",
+    "request_card_ref": "smoke-req-001",
+    "translator_id": "unknown_mock_view_v0"
+  },
+  "expected_status": "failed",
+  "expected_diagnostics_contains": [
+    "Unknown translator"
+  ],
+  "expected_evidence_refs": [],
+  "expected_output_card_ref": "",
+  "expected_exit_code": 0,
+  "expected_smoke_ok": true,
+  "verified": false,
+  "boundary_scope": "RRKAL_odoriba_reflex_arc_v0"
+}
