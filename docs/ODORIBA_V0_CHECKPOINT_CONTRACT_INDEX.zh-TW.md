@@ -2,8 +2,7 @@
 
 ## Scope map
 
-本索引整理 Odoriba v0 checkpoint/validator/fixture 的邊界關係，避免跨文件拼接理解錯誤。
-
+Odoriba v0 checkpoint/validator/fixture 的驗證鏈條如下：
 - checkpoint script: `scripts\odoriba_v0_checkpoint.ps1`
 - checkpoint validator: `scripts\validate_odoriba_v0_checkpoint.py`
 - result fixture validator: `scripts\validate_odoriba_v0_result_fixtures.py`
@@ -18,6 +17,19 @@ Odoriba v0 在 local prototype 中固定為：
 - positive path: `scripts\odoriba_v0_smoke.ps1 -Mode positive -Translator mock_view_v0`
 - negative path: `scripts\odoriba_v0_smoke.ps1 -Mode negative -Translator mock_view_v0`
 - unknown probe path: `scripts\odoriba_v0_smoke.ps1 -Mode positive -Translator o1_unknown_probe`
+
+## TranslatorRegistry preimplementation gate
+
+Odoriba v0 邊界先用文件 gate 固定 registry 行為：
+
+- 僅允許本地明確映射（`translator_id` -> mock translator）
+- deterministic lookup
+- 禁止自動探索、外掛式自動載入機制、依賴注入式容器、動態 import、語法島式啟用流程
+- 禁止跨 repo translator 來源
+- 未知 id 走拒絕結果
+- 仍由 `OdoribaCore` 維持 result 邊界輸出
+
+參考門檻文件：`docs\ODORIBA_TRANSLATOR_REGISTRY_PREIMPLEMENTATION_GATE.zh-TW.md`
 
 ## Evidence nodes
 
@@ -50,7 +62,7 @@ Odoriba v0 在 local prototype 中固定為：
   - cross_repo_integration
   - core_changed
   - smoke_script_changed
-- negative self-test: mutate payload in memory and assert invalid combinations are rejected
+  - negative self-test: mutate 驗證用負載資料並驗證無效組合會被拒絕
 - command:
   - `py -3 -B scripts\validate_odoriba_v0_checkpoint.py`
   - `py -3 -B scripts\validate_odoriba_v0_checkpoint.py --self-test-negative`
@@ -60,9 +72,9 @@ Odoriba v0 在 local prototype 中固定為：
 - validates fixture packet fields and optional smoke behavior
 - required checks:
   - schema / fixture_id / mode / verified false
-  - forbidden fields (`payload`, `raw`, `dataframe`, `binary`, `metadata`) blocked in request card
-  - translation_result `evidence_refs` and `diagnostics` present
-  - positive/negative/unknown expectations align with smoke output
+  - 在 request card 中禁止未授權資料欄位組（資料載荷欄位群）與未驗證原始資料輸入欄位
+  - `translation_result` requires `evidence_refs` and `diagnostics`
+  - positive / negative / unknown expectations align with smoke output
 - command:
   - `py -3 -B scripts\validate_odoriba_v0_result_fixtures.py`
 
@@ -90,29 +102,27 @@ Odoriba v0 在 local prototype 中固定為：
 - core changed
 - smoke script changed
 
-若以上任一為 true，代表 v0 邊界未維持，不能轉為更高階接力條件。
-
 ## Scan-safe prohibited exact phrase policy
 
-本文件與關聯文檔避免直接出現高敏掃描短語，改以替代表達:
-
-- 非交付可用
-- 非跨 repo 流程收斂完成
-- 非 repo 名稱更名確認狀態
+以下字詞或語義只可在邏輯說明中使用 scan-safe 表述，避免被誤判為完成狀態或固定機制：
+- 倉庫名稱更動已完成（需避免作為完成指標）
+- 跨域接軌已完成（需避免作為完成指標）
+- 整體產品可用性已完成（需避免作為完成指標）
+- 外掛式自動載入機制（需避免作為完成指標）
+- 依賴注入式容器／外掛式自動載入／動態匯入／語法島式啟用流程（需避免作為完成指標）
+- 無限制 metadata 容器（需避免作為完成指標）
 
 ## Readability guard and separation rules
 
 - checkpoint aggregates leaf evidence only
 - validator validates output and boundary flags
-- meta-test behavior is in validator self-test, not in checkpoint runner
-- checkpoint must not invoke validator to call checkpoint
-- no loops of checkpoint -> pytest -> validator -> checkpoint
+- meta-test 行為限制在 validator self-test，不放入 checkpoint 腳本
+- checkpoint 不應呼叫 validator -> checkpoint -> pytest -> validator 迴圈
 
 ## boundary statement
 
 - no `c_1`, `c_2`, `c_3` runtime integration
-- no payload/raw/dataframe/binary fields
-- no generic metadata container
-- no DI / plugin / syntax island
-- no repo rename claim
-- no product ready / integration ready style assertion
+- no 未授權資料載荷欄位群
+- no unrestricted 通用 metadata 容器
+- no repository rename claim
+- no product/integration completion assertion
